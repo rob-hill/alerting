@@ -8,7 +8,7 @@ import (
 )
 
 var authheader = "Authorization"
-var authkey = ""
+var authkey = "" // don't want this on github
 var url string = "https://api.opsgenie.com/v2/alerts/"
 var query string = "?identifierType=tiny"
 
@@ -22,6 +22,9 @@ if len(os.Args) < 2 {
 
 tinyId := os.Args[1]
 query = tinyId + query
+
+// read authkey from file TODO
+
 
 client := &http.Client{
 }
