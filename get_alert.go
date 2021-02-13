@@ -2,6 +2,7 @@ package main
 
 import (
     "fmt"
+    "strings"
     "io/ioutil"
     "net/http"
     "os"
@@ -15,6 +16,8 @@ var query string = "?identifierType=tiny"
 
 func main() {
 
+
+// read alert id from command line
 if len(os.Args) < 2 {
   fmt.Println("please supply a tinyId")
   os.Exit(1)
@@ -23,9 +26,17 @@ if len(os.Args) < 2 {
 tinyId := os.Args[1]
 query = tinyId + query
 
-// read authkey from file TODO
+// read authkey from file 
+data, err := ioutil.ReadFile("authkey")
+if err != nil {
+    fmt.Println("Cannot read ./authkey", err)
+    return
+}
 
+//authkey = string(data)
+authkey = strings.TrimSuffix(string(data), "\n")
 
+// set up the http client
 client := &http.Client{
 }
 
@@ -35,6 +46,7 @@ handleError(err)
 req, err := http.NewRequest("GET", url+query, nil)
 handleError(err)
 
+// add the authorization header
 req.Header.Add(authheader, authkey)
 resp, err = client.Do(req)
 handleError(err)
