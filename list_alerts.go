@@ -3,6 +3,7 @@ package main
 import (
     "fmt"
     "strings"
+    "strconv"
     "io/ioutil"
     "encoding/json"
     "net/http"
@@ -67,11 +68,27 @@ if err != nil {
     fmt.Println("error:", err)
 }
 
-// can access using struct now
+// pull list of alerts from struct
+
+var csv_line string = ""
+for _, alert := range obj.Data {
+  csv_line = alert.ID + "," + alert.Alias + "," + alert.TinyID + ",\"" + alert.Message + "\"," + alert.Status + "," + strconv.FormatBool(alert.IsSeen) + "," + strconv.FormatBool(alert.Acknowledged) + "," + strconv.FormatBool(alert.Snoozed) + "," + alert.CreatedAt + "," + alert.UpdatedAt + "," + strconv.FormatInt(alert.Count, 10) + "," + alert.Owner + "," + alert.Teams[0].ID
+
+  fmt.Println("Alerts returned: ", csv_line)
+// "AlertId,Alias,TinyId,Message,Status,IsSeen,Acknowledged,Snoozed,CreatedAt,UpdatedAt,Count,Owner,Teams" 
+}
+
+
+// pull next url from struct
 fmt.Printf("Next URL : %s\n", obj.Paging.Next);
 
 
+
 } // end main
+
+
+
+
 
 func handleError(err error) {
 
