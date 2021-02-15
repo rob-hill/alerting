@@ -1,6 +1,7 @@
 package main
 
 import (
+    "time"
     "fmt"
     "strings"
     "strconv"
@@ -24,12 +25,10 @@ if len(os.Args) < 3 {
   os.Exit(1)
 }
 
-
 startDate := os.Args[1]
 endDate := os.Args[2]
 
 var query string = "?query=createdAt%3E" + startDate + "%20AND%20createdAt%3C" + endDate + "&limit=20&sort=createdAt&order=desc"
-
 
 // read authkey from file 
 data, err := ioutil.ReadFile("authkey")
@@ -52,6 +51,7 @@ handleError(err)
 
 // add the authorization header
 req.Header.Add(authheader, authkey)
+fmt.Printf("fetching first url : %s\n", url+query)
 resp, err = client.Do(req)
 handleError(err)
 
@@ -59,7 +59,7 @@ defer resp.Body.Close()
 body, err := ioutil.ReadAll(resp.Body)
 //fmt.Println(string(body))
 
-// json data
+// put our json data in here
 var obj AlertList
 
 // unmarshall it
@@ -68,28 +68,62 @@ if err != nil {
     fmt.Println("error:", err)
 }
 
-// pull list of alerts from struct
 
-var csv_line string = ""
-for _, alert := range obj.Data {
-  csv_line = alert.ID + "," + alert.Alias + "," + alert.TinyID + ",\"" + alert.Message + "\"," + alert.Status + "," + strconv.FormatBool(alert.IsSeen) + "," + strconv.FormatBool(alert.Acknowledged) + "," + strconv.FormatBool(alert.Snoozed) + "," + alert.CreatedAt + "," + alert.UpdatedAt + "," + strconv.FormatInt(alert.Count, 10) + "," + alert.Owner + "," + alert.Teams[0].ID
+csv_data :=  "AlertId,Alias,TinyId,Message,Status,IsSeen,Acknowledged,Snoozed,CreatedAt,UpdatedAt,Count,Owner,Teams\n" 
+csv_data = csv_data + compose_csv(obj)
 
-  fmt.Println("Alerts returned: ", csv_line)
-// "AlertId,Alias,TinyId,Message,Status,IsSeen,Acknowledged,Snoozed,CreatedAt,UpdatedAt,Count,Owner,Teams" 
+
+// pull out the next url and keep fetching each page until we hit the last page
+
+for  {
+
+    if obj.Paging.Next == "" {
+      break
+    }
+
+    //fmt.Printf("fetching next url : %s\n", obj.Paging.Next)
+
+    req, err = http.NewRequest("GET", obj.Paging.Next, nil)
+    handleError(err)
+
+    // add the authorization header
+    req.Header.Add(authheader, authkey)
+    resp, err = client.Do(req)
+    handleError(err)
+
+    defer resp.Body.Close()
+    body, err = ioutil.ReadAll(resp.Body)
+
+    // clear out the last alert
+    obj = AlertList{}
+    // unmarshall it
+    err = json.Unmarshal([]byte(body), &obj)
+    if err != nil {
+        fmt.Println("error:", err)
+    }
+    // add the fields to the csv
+    csv_data = csv_data + compose_csv(obj)
+
+    time.Sleep(2 * time.Second)
+
 }
 
-
-// pull next url from struct
-fmt.Printf("Next URL : %s\n", obj.Paging.Next);
-
-
+fmt.Printf(csv_data)
 
 } // end main
 
+// pull out all the relevant parts from the json struct and format into a single line for the csv
+func compose_csv(obj AlertList) string {
+  var csv_data = ""
+  for _, alert := range obj.Data {
+    var csv_line string = alert.ID + "," + alert.Alias + "," + alert.TinyID + ",\"" + alert.Message + "\"," + alert.Status + "," + strconv.FormatBool(alert.IsSeen) + "," + strconv.FormatBool(alert.Acknowledged) + "," + strconv.FormatBool(alert.Snoozed) + "," + alert.CreatedAt + "," + alert.UpdatedAt + "," + strconv.FormatInt(alert.Count, 10) + "," + alert.Owner + "," + alert.Teams[0].ID + "\n"
+    csv_data = csv_data + csv_line
+  }
+  return csv_data
 
+}
 
-
-
+// deal with it
 func handleError(err error) {
 
   if err != nil {
