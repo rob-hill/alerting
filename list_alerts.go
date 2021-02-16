@@ -68,7 +68,9 @@ func main() {
 		fmt.Println("error:", err)
 	}
 
-	fmt.Printf("body is %s\n", body)
+  for _, teams := range teamobj.Data {
+    fmt.Printf("Team name is %s, team id is %s\n", teams.Name, teams.ID)
+  }
 
 	//get the 'lerts
 	//
