@@ -68,9 +68,8 @@ func main() {
 		fmt.Println("error:", err)
 	}
 
-  for _, teams := range teamobj.Data {
-    fmt.Printf("Team name is %s, team id is %s\n", teams.Name, teams.ID)
-  }
+
+
 
 	//get the 'lerts
 	//
@@ -140,6 +139,13 @@ func main() {
 
 	}
 
+
+// replace team ids with team names
+  for _, teams := range teamobj.Data {
+    //fmt.Printf("Team name is %s, team id is %s\n", teams.Name, teams.ID)
+    csv_data = strings.Replace(csv_data, teams.ID, "\""+teams.Name+"\"", -1)
+  }
+
 	fmt.Printf(csv_data)
 
 } // end main
@@ -148,7 +154,7 @@ func main() {
 func compose_csv(obj AlertList) string {
 	var csv_data = ""
 	for _, alert := range obj.Data {
-		var csv_line string = alert.ID + "," + alert.Alias + "," + alert.TinyID + ",\"" + alert.Message + "\"," + alert.Status + "," + strconv.FormatBool(alert.IsSeen) + "," + strconv.FormatBool(alert.Acknowledged) + "," + strconv.FormatBool(alert.Snoozed) + "," + alert.CreatedAt + "," + alert.UpdatedAt + "," + strconv.FormatInt(alert.Count, 10) + "," + alert.Owner + "," + alert.Teams[0].ID + "\n"
+		var csv_line string = alert.ID + ",\"" + alert.Alias + "\"," + alert.TinyID + ",\"" + alert.Message + "\"," + alert.Status + "," + strconv.FormatBool(alert.IsSeen) + "," + strconv.FormatBool(alert.Acknowledged) + "," + strconv.FormatBool(alert.Snoozed) + "," + alert.CreatedAt + "," + alert.UpdatedAt + "," + strconv.FormatInt(alert.Count, 10) + "," + alert.Owner + "," + alert.Teams[0].ID + "\n"
 		csv_data = csv_data + csv_line
 	}
 	return csv_data
