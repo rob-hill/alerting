@@ -123,7 +123,7 @@ func main() {
     os.Exit(1)
 	}
 
-	csv_data := "AlertId,Alias,TinyId,Message,Status,IsSeen,Acknowledged,Snoozed,CreatedAt,UpdatedAt,Count,Owner,Teams\n"
+	csv_data := "AlertId,Alias,TinyId,Message,Status,IsSeen,Acknowledged,Snoozed,CreatedAt,UpdatedAt,Count,Owner,Teams,Priority\n"
 	csv_data = csv_data + compose_csv(obj)
 
 	// pull out the next url and keep fetching each page until we hit the last page
