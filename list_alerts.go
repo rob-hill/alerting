@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -11,12 +12,14 @@ import (
 	"time"
 )
 
+var authheader = "Authorization"
+var authkey = "" // don't want this on github
+var url = "https://api.opsgenie.com/v2/alerts"
+var teams_url = "https://api.opsgenie.com/v2/teams"
+
+
 func main() {
 
-	var authheader = "Authorization"
-	var authkey = "" // don't want this on github
-	var url string = "https://api.opsgenie.com/v2/alerts"
-	var teams_url = "https://api.opsgenie.com/v2/teams"
 
 	// read startDate, endDate from command line
 	if len(os.Args) < 3 {
@@ -29,11 +32,24 @@ func main() {
 
 	var query string = "?query=createdAt%3E" + startDate + "%20AND%20createdAt%3C" + endDate + "&limit=20&sort=createdAt&order=desc"
 
+
+  // create a log file
+  // If the file doesn't exist, create it, or append to the file
+	file, err := os.OpenFile("./runlog.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+  defer file.Close()
+
+  file.WriteString("Starting run.... StartDate and EndDate are:" + startDate + " " + endDate + "\n")
+
+
 	// read authkey from file
 	data, err := ioutil.ReadFile("authkey")
 	if err != nil {
 		fmt.Println("Cannot read ./authkey", err)
-		return
+    file.WriteString("Cannot read ./authkey\n")
+		os.Exit(1)
 	}
 
 	authkey = strings.TrimSuffix(string(data), "\n")
@@ -51,7 +67,8 @@ func main() {
 
 	// add the authorization header
 	req.Header.Add(authheader, authkey)
-	fmt.Printf("fetching teams url : %s\n", teams_url)
+	//fmt.Printf("fetching teams url : %s\n", teams_url)
+	file.WriteString("fetching teams url: "+ teams_url + "\n")
 	resp, err = client.Do(req)
 	handleError(err)
 
@@ -66,6 +83,8 @@ func main() {
 	err = json.Unmarshal([]byte(body), &teamobj)
 	if err != nil {
 		fmt.Println("error:", err)
+    file.WriteString("error unmarshalling " + "\n")
+    os.Exit(1)
 	}
 
 
@@ -84,7 +103,8 @@ func main() {
 
 	// add the authorization header
 	req.Header.Add(authheader, authkey)
-	fmt.Printf("fetching first url : %s\n", url+query)
+	//fmt.Printf("fetching first url : %s\n", url+query)
+	file.WriteString("fetching first url: "+url+query + "\n")
 	resp, err = client.Do(req)
 	handleError(err)
 
@@ -99,6 +119,8 @@ func main() {
 	err = json.Unmarshal([]byte(body), &obj)
 	if err != nil {
 		fmt.Println("error:", err)
+    file.WriteString("error unmarshalling" + "\n")
+    os.Exit(1)
 	}
 
 	csv_data := "AlertId,Alias,TinyId,Message,Status,IsSeen,Acknowledged,Snoozed,CreatedAt,UpdatedAt,Count,Owner,Teams\n"
@@ -113,6 +135,7 @@ func main() {
 		}
 
 		//fmt.Printf("fetching next url : %s\n", obj.Paging.Next)
+		file.WriteString("fetching next url: "+obj.Paging.Next + "\n")
 
 		req, err = http.NewRequest("GET", obj.Paging.Next, nil)
 		handleError(err)
@@ -125,36 +148,60 @@ func main() {
 		defer resp.Body.Close()
 		body, err = ioutil.ReadAll(resp.Body)
 
+
 		// clear out the last alert
 		obj = AlertList{}
 		// unmarshall it
 		err = json.Unmarshal([]byte(body), &obj)
 		if err != nil {
 			fmt.Println("error:", err)
+      file.WriteString("error unmarshalling" + "\n")
+      os.Exit(1)
 		}
 		// add the fields to the csv
+    file.WriteString("Composing csv." + "\n")
 		csv_data = csv_data + compose_csv(obj)
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(3 * time.Second)
 
 	}
 
 
-// replace team ids with team names
+  // replace team ids with team names
+  file.WriteString("Replacing team names...." + "\n")
   for _, teams := range teamobj.Data {
     //fmt.Printf("Team name is %s, team id is %s\n", teams.Name, teams.ID)
     csv_data = strings.Replace(csv_data, teams.ID, "\""+teams.Name+"\"", -1)
   }
 
 	fmt.Printf(csv_data)
+  file.WriteString("Done." + "\n")
 
 } // end main
+
+
+
 
 // pull out all the relevant parts from the json struct and format into a single line for the csv
 func compose_csv(obj AlertList) string {
 	var csv_data = ""
+  layout := "2006-01-02T15:04:05"
+  loc, _ := time.LoadLocation("Australia/NSW")
+
 	for _, alert := range obj.Data {
-		var csv_line string = alert.ID + ",\"" + alert.Alias + "\"," + alert.TinyID + ",\"" + alert.Message + "\"," + alert.Status + "," + strconv.FormatBool(alert.IsSeen) + "," + strconv.FormatBool(alert.Acknowledged) + "," + strconv.FormatBool(alert.Snoozed) + "," + alert.CreatedAt + "," + alert.UpdatedAt + "," + strconv.FormatInt(alert.Count, 10) + "," + alert.Owner + "," + alert.Teams[0].ID + "\n"
+    created := alert.CreatedAt[0:19]
+    updated := alert.UpdatedAt[0:19]
+    var createdTime, err = time.Parse(layout, created)
+    var updatedTime, err2 = time.Parse(layout, updated)
+    if err != nil {
+        fmt.Println(err)
+    }
+    if err2 != nil {
+        fmt.Println(err)
+    }
+    //fmt.Println(createdTime.In(loc))
+
+		var csv_line string = alert.ID + ",\"" + alert.Alias + "\"," + alert.TinyID + ",\"" + alert.Message + "\"," + alert.Status + "," + strconv.FormatBool(alert.IsSeen) + "," + strconv.FormatBool(alert.Acknowledged) + "," + strconv.FormatBool(alert.Snoozed) + ",\"" + createdTime.In(loc).String() + "\",\"" + updatedTime.In(loc).String() + "\"," + strconv.FormatInt(alert.Count, 10) + "," + alert.Owner + "," + alert.Teams[0].ID + "\n"
 		csv_data = csv_data + csv_line
 	}
 	return csv_data
