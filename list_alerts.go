@@ -199,9 +199,16 @@ func compose_csv(obj AlertList) string {
     if err2 != nil {
         fmt.Println(err)
     }
+
     //fmt.Println(createdTime.In(loc))
 
-		var csv_line string = alert.ID + ",\"" + alert.Alias + "\"," + alert.TinyID + ",\"" + alert.Message + "\"," + alert.Status + "," + strconv.FormatBool(alert.IsSeen) + "," + strconv.FormatBool(alert.Acknowledged) + "," + strconv.FormatBool(alert.Snoozed) + ",\"" + createdTime.In(loc).String() + "\",\"" + updatedTime.In(loc).String() + "\"," + strconv.FormatInt(alert.Count, 10) + "," + alert.Owner + "," + alert.Teams[0].ID + "," + alert.Priority + "\n"
+    // protect against empty Teams array
+    var teamId string = ""
+    if len(alert.Teams) != 0 {
+      teamId = alert.Teams[0].ID
+    }
+
+		var csv_line string = alert.ID + ",\"" + alert.Alias + "\"," + alert.TinyID + ",\"" + alert.Message + "\"," + alert.Status + "," + strconv.FormatBool(alert.IsSeen) + "," + strconv.FormatBool(alert.Acknowledged) + "," + strconv.FormatBool(alert.Snoozed) + ",\"" + createdTime.In(loc).String() + "\",\"" + updatedTime.In(loc).String() + "\"," + strconv.FormatInt(alert.Count, 10) + "," + alert.Owner + "," + teamId + "," + alert.Priority + "\n"
 		csv_data = csv_data + csv_line
 	}
 	return csv_data
