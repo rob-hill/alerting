@@ -201,7 +201,7 @@ func compose_csv(obj AlertList) string {
     }
     //fmt.Println(createdTime.In(loc))
 
-		var csv_line string = alert.ID + ",\"" + alert.Alias + "\"," + alert.TinyID + ",\"" + alert.Message + "\"," + alert.Status + "," + strconv.FormatBool(alert.IsSeen) + "," + strconv.FormatBool(alert.Acknowledged) + "," + strconv.FormatBool(alert.Snoozed) + ",\"" + createdTime.In(loc).String() + "\",\"" + updatedTime.In(loc).String() + "\"," + strconv.FormatInt(alert.Count, 10) + "," + alert.Owner + "," + alert.Teams[0].ID + "\n"
+		var csv_line string = alert.ID + ",\"" + alert.Alias + "\"," + alert.TinyID + ",\"" + alert.Message + "\"," + alert.Status + "," + strconv.FormatBool(alert.IsSeen) + "," + strconv.FormatBool(alert.Acknowledged) + "," + strconv.FormatBool(alert.Snoozed) + ",\"" + createdTime.In(loc).String() + "\",\"" + updatedTime.In(loc).String() + "\"," + strconv.FormatInt(alert.Count, 10) + "," + alert.Owner + "," + alert.Teams[0].ID + "," + alert.Priority + "\n"
 		csv_data = csv_data + csv_line
 	}
 	return csv_data
