@@ -114,8 +114,11 @@ func main() {
 } // end main
 
 
-func get_url(url string) ([]byte) {
 
+// fetch the body given a url
+//
+
+func get_url(url string) ([]byte) {
 
 	// set up the http client
 	client := &http.Client{}
@@ -138,13 +141,15 @@ func get_url(url string) ([]byte) {
 	//fmt.Println(string(body))
 	handleError(err)
 
-
   return body
 }
 
 // pull out all the relevant parts from the json struct and format into a single line for the csv
+//
 func gather_data(obj AlertList) string {
 	var csv_data = ""
+
+  // get date layout and location so we can adjust from UTC
   layout := "2006-01-02T15:04:05"
   loc, _ := time.LoadLocation("Australia/NSW")
 
@@ -152,9 +157,9 @@ func gather_data(obj AlertList) string {
     created := alert.CreatedAt[0:19]
     updated := alert.UpdatedAt[0:19]
     var createdTime, err = time.Parse(layout, created)
-    var updatedTime, err2 = time.Parse(layout, updated)
     handleError(err)
-    handleError(err2)
+    var updatedTime, err = time.Parse(layout, updated)
+    handleError(err)
 
     // Grab alert-specific data here
 
