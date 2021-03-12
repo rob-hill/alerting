@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -16,7 +15,8 @@ var authheader = "Authorization"
 var authkey = "" // don't want this on github
 var url = "https://api.opsgenie.com/v2/alerts"
 var teams_url = "https://api.opsgenie.com/v2/teams"
-
+var logfile *os.File
+var err error
 
 func main() {
 
@@ -35,93 +35,43 @@ func main() {
 
   // create a log file
   // If the file doesn't exist, create it, or append to the file
-	file, err := os.OpenFile("./runlog.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-  defer file.Close()
+  logfile, err = os.OpenFile("./runlog.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	handleError(err)
+  defer logfile.Close()
 
-  file.WriteString("Starting run.... StartDate and EndDate are:" + startDate + " " + endDate + "\n")
+  logfile.WriteString("Starting run.... StartDate and EndDate are:" + startDate + " " + endDate + "\n")
 
 
 	// read authkey from file
 	data, err := ioutil.ReadFile("authkey")
 	if err != nil {
 		fmt.Println("Cannot read ./authkey", err)
-    file.WriteString("Cannot read ./authkey\n")
+    logfile.WriteString("Cannot read ./authkey\n")
 		os.Exit(1)
 	}
 
 	authkey = strings.TrimSuffix(string(data), "\n")
 
 	//get the list of teams
-	//
-	// set up the http client
-	client := &http.Client{}
+  body := get_url(teams_url)
 
-	resp, err := client.Get(teams_url)
-	handleError(err)
-
-	req, err := http.NewRequest("GET", teams_url, nil)
-	handleError(err)
-
-	// add the authorization header
-	req.Header.Add(authheader, authkey)
-	//fmt.Printf("fetching teams url : %s\n", teams_url)
-	file.WriteString("fetching teams url: "+ teams_url + "\n")
-	resp, err = client.Do(req)
-	handleError(err)
-
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	//fmt.Println(string(body))
-
-	// put our json data in here
+  // put our json data in here
 	var teamobj Teams
 
 	// unmarshall it
 	err = json.Unmarshal([]byte(body), &teamobj)
-	if err != nil {
-		fmt.Println("error:", err)
-    file.WriteString("error unmarshalling " + "\n")
-    os.Exit(1)
-	}
-
-
-
-
-	//get the 'lerts
-	//
-	// set up the http client
-	client = &http.Client{}
-
-	resp, err = client.Get(url)
 	handleError(err)
 
-	req, err = http.NewRequest("GET", url+query, nil)
-	handleError(err)
 
-	// add the authorization header
-	req.Header.Add(authheader, authkey)
-	//fmt.Printf("fetching first url : %s\n", url+query)
-	file.WriteString("fetching first url: "+url+query + "\n")
-	resp, err = client.Do(req)
-	handleError(err)
-
-	defer resp.Body.Close()
-	body, err = ioutil.ReadAll(resp.Body)
-	//fmt.Println(string(body))
+	//get the alerts
+  body = get_url(url+query)
 
 	// put our json data in here
 	var obj AlertList
 
 	// unmarshall it
 	err = json.Unmarshal([]byte(body), &obj)
-	if err != nil {
-		fmt.Println("error:", err)
-    file.WriteString("error unmarshalling" + "\n")
-    os.Exit(1)
-	}
+	handleError(err)
 
 	csv_data := "AlertId,Alias,TinyId,Message,Status,IsSeen,Acknowledged,Snoozed,CreatedAt,UpdatedAt,Count,Owner,Teams,Priority\n"
 	csv_data = csv_data + gather_data(obj)
@@ -134,32 +84,16 @@ func main() {
 			break
 		}
 
-		//fmt.Printf("fetching next url : %s\n", obj.Paging.Next)
-		file.WriteString("fetching next url: "+obj.Paging.Next + "\n")
-
-		req, err = http.NewRequest("GET", obj.Paging.Next, nil)
-		handleError(err)
-
-		// add the authorization header
-		req.Header.Add(authheader, authkey)
-		resp, err = client.Do(req)
-		handleError(err)
-
-		defer resp.Body.Close()
-		body, err = ioutil.ReadAll(resp.Body)
-
+    body = get_url(obj.Paging.Next)
 
 		// clear out the last alert
 		obj = AlertList{}
 		// unmarshall it
 		err = json.Unmarshal([]byte(body), &obj)
-		if err != nil {
-			fmt.Println("error:", err)
-      file.WriteString("error unmarshalling" + "\n")
-      os.Exit(1)
-		}
+    handleError(err)
+
 		// add the fields to the csv
-    file.WriteString("Composing csv." + "\n")
+    logfile.WriteString("Composing csv." + "\n")
 		csv_data = csv_data + gather_data(obj)
 
 		time.Sleep(2 * time.Second)
@@ -168,19 +102,45 @@ func main() {
 
 
   // replace team ids with team names
-  file.WriteString("Replacing team names...." + "\n")
+  logfile.WriteString("Replacing team names...." + "\n")
   for _, teams := range teamobj.Data {
     //fmt.Printf("Team name is %s, team id is %s\n", teams.Name, teams.ID)
     csv_data = strings.Replace(csv_data, teams.ID, "\""+teams.Name+"\"", -1)
   }
 
 	fmt.Printf(csv_data)
-  file.WriteString("Done." + "\n")
+  logfile.WriteString("Done." + "\n")
 
 } // end main
 
 
+func get_url(url string) ([]byte) {
 
+
+	// set up the http client
+	client := &http.Client{}
+
+	resp, err := client.Get(url)
+	handleError(err)
+
+	req, err := http.NewRequest("GET", url, nil)
+	handleError(err)
+
+	// add the authorization header
+	req.Header.Add(authheader, authkey)
+	//fmt.Printf("fetching %s\n", url)
+	logfile.WriteString("fetching "+ url + "\n")
+	resp, err = client.Do(req)
+	handleError(err)
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	//fmt.Println(string(body))
+	handleError(err)
+
+
+  return body
+}
 
 // pull out all the relevant parts from the json struct and format into a single line for the csv
 func gather_data(obj AlertList) string {
@@ -193,49 +153,10 @@ func gather_data(obj AlertList) string {
     updated := alert.UpdatedAt[0:19]
     var createdTime, err = time.Parse(layout, created)
     var updatedTime, err2 = time.Parse(layout, updated)
-    if err != nil {
-        fmt.Println(err)
-    }
-    if err2 != nil {
-        fmt.Println(err)
-    }
+    handleError(err)
+    handleError(err2)
 
-    // Grab alert-specific data
-
-
-/*
-		//fmt.Printf("fetching next url : %s\n", obj.Paging.Next)
-		file.WriteString("fetching next url: "+obj.Paging.Next + "\n")
-
-		req, err = http.NewRequest("GET", obj.Paging.Next, nil)
-		handleError(err)
-
-		// add the authorization header
-		req.Header.Add(authheader, authkey)
-		resp, err = client.Do(req)
-		handleError(err)
-
-		defer resp.Body.Close()
-		body, err = ioutil.ReadAll(resp.Body)
-
-
-		// clear out the last alert
-		obj = AlertList{}
-		// unmarshall it
-		err = json.Unmarshal([]byte(body), &obj)
-		if err != nil {
-			fmt.Println("error:", err)
-      file.WriteString("error unmarshalling" + "\n")
-      os.Exit(1)
-		}
-
-
-
-
-
-*/
-
-
+    // Grab alert-specific data here
 
 
 
