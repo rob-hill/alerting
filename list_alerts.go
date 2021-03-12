@@ -124,7 +124,7 @@ func main() {
 	}
 
 	csv_data := "AlertId,Alias,TinyId,Message,Status,IsSeen,Acknowledged,Snoozed,CreatedAt,UpdatedAt,Count,Owner,Teams,Priority\n"
-	csv_data = csv_data + compose_csv(obj)
+	csv_data = csv_data + gather_data(obj)
 
 	// pull out the next url and keep fetching each page until we hit the last page
 
@@ -160,9 +160,9 @@ func main() {
 		}
 		// add the fields to the csv
     file.WriteString("Composing csv." + "\n")
-		csv_data = csv_data + compose_csv(obj)
+		csv_data = csv_data + gather_data(obj)
 
-		time.Sleep(3 * time.Second)
+		time.Sleep(2 * time.Second)
 
 	}
 
@@ -183,7 +183,7 @@ func main() {
 
 
 // pull out all the relevant parts from the json struct and format into a single line for the csv
-func compose_csv(obj AlertList) string {
+func gather_data(obj AlertList) string {
 	var csv_data = ""
   layout := "2006-01-02T15:04:05"
   loc, _ := time.LoadLocation("Australia/NSW")
@@ -200,7 +200,44 @@ func compose_csv(obj AlertList) string {
         fmt.Println(err)
     }
 
-    //fmt.Println(createdTime.In(loc))
+    // Grab alert-specific data
+
+
+/*
+		//fmt.Printf("fetching next url : %s\n", obj.Paging.Next)
+		file.WriteString("fetching next url: "+obj.Paging.Next + "\n")
+
+		req, err = http.NewRequest("GET", obj.Paging.Next, nil)
+		handleError(err)
+
+		// add the authorization header
+		req.Header.Add(authheader, authkey)
+		resp, err = client.Do(req)
+		handleError(err)
+
+		defer resp.Body.Close()
+		body, err = ioutil.ReadAll(resp.Body)
+
+
+		// clear out the last alert
+		obj = AlertList{}
+		// unmarshall it
+		err = json.Unmarshal([]byte(body), &obj)
+		if err != nil {
+			fmt.Println("error:", err)
+      file.WriteString("error unmarshalling" + "\n")
+      os.Exit(1)
+		}
+
+
+
+
+
+*/
+
+
+
+
 
     // protect against empty Teams array
     var teamId string = ""
@@ -288,3 +325,64 @@ type Teams struct {
 	RequestID string  `json:"requestId"`
 	Took      float64 `json:"took"`
 }
+
+
+type AlertDetails struct {
+	Data struct {
+		Acknowledged bool     `json:"acknowledged"`
+		Actions      []string `json:"actions"`
+		Alias        string   `json:"alias"`
+		Count        int64    `json:"count"`
+		CreatedAt    string   `json:"createdAt"`
+		Description  string   `json:"description"`
+		Details      struct {
+			Backend      string `json:"Backend"`
+			Class        string `json:"Class"`
+			Count        string `json:"Count"`
+			Frontend     string `json:"Frontend"`
+			Host         string `json:"Host"`
+			Raw          string `json:"Raw"`
+			Results_Link string `json:"Results Link"`
+			Sdkb         string `json:"SDKB"`
+			SdkbID       string `json:"SDKB_ID"`
+			Severity     string `json:"Severity"`
+			Total        string `json:"Total"`
+		} `json:"details"`
+		Entity      string `json:"entity"`
+		ID          string `json:"id"`
+		Integration struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+			Type string `json:"type"`
+		} `json:"integration"`
+		IsSeen         bool   `json:"isSeen"`
+		LastOccurredAt string `json:"lastOccurredAt"`
+		Message        string `json:"message"`
+		Owner          string `json:"owner"`
+		OwnerTeamID    string `json:"ownerTeamId"`
+		Priority       string `json:"priority"`
+		Report         struct {
+			AckTime        int64  `json:"ackTime"`
+			AcknowledgedBy string `json:"acknowledgedBy"`
+			CloseTime      int64  `json:"closeTime"`
+			ClosedBy       string `json:"closedBy"`
+		} `json:"report"`
+		Responders []struct {
+			ID   string `json:"id"`
+			Type string `json:"type"`
+		} `json:"responders"`
+		Seen    bool     `json:"seen"`
+		Snoozed bool     `json:"snoozed"`
+		Source  string   `json:"source"`
+		Status  string   `json:"status"`
+		Tags    []string `json:"tags"`
+		Teams   []struct {
+			ID string `json:"id"`
+		} `json:"teams"`
+		TinyID    string `json:"tinyId"`
+		UpdatedAt string `json:"updatedAt"`
+	} `json:"data"`
+	RequestID string  `json:"requestId"`
+	Took      float64 `json:"took"`
+}
+
