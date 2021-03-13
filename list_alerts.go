@@ -80,7 +80,7 @@ func main() {
 	handleError(err)
 
   // create csv header
-	csv_data := "AlertId,Alias,TinyId,Message,Status,IsSeen,Acknowledged,Snoozed,CreatedAt,UpdatedAt,Count,Owner,Teams,Priority\n"
+	csv_data := "AlertId,Alias,TinyId,Message,Status,IsSeen,Acknowledged,Snoozed,CreatedAt,UpdatedAt,Count,Owner,Teams,Priority,Backend,Frontend,Host,Class\n"
 
   // pass the first page to gather_data
 	csv_data = csv_data + gather_data(obj)
@@ -173,34 +173,30 @@ func gather_data(obj AlertList) string {
     }
 
     alertTinyID = alert.TinyID
-		var csv_line string = alert.ID + ",\"" + alert.Alias + "\"," + alert.TinyID + ",\"" + alert.Message + "\"," + alert.Status + "," + strconv.FormatBool(alert.IsSeen) + "," + strconv.FormatBool(alert.Acknowledged) + "," + strconv.FormatBool(alert.Snoozed) + ",\"" + createdTime.In(loc).String() + "\",\"" + updatedTime.In(loc).String() + "\"," + strconv.FormatInt(alert.Count, 10) + "," + alert.Owner + "," + teamId + "," + alert.Priority + "\n"
+		var csv_line string = alert.ID + ",\"" + alert.Alias + "\"," + alert.TinyID + ",\"" + alert.Message + "\"," + alert.Status + "," + strconv.FormatBool(alert.IsSeen) + "," + strconv.FormatBool(alert.Acknowledged) + "," + strconv.FormatBool(alert.Snoozed) + ",\"" + createdTime.In(loc).String() + "\",\"" + updatedTime.In(loc).String() + "\"," + strconv.FormatInt(alert.Count, 10) + "," + alert.Owner + "," + teamId + "," + alert.Priority + "," 
 		csv_data = csv_data + csv_line
-	}
-
-  // Grab alert-specific data here
-  url = "https://api.opsgenie.com/v2/alerts/" + alertTinyID + "?identifierType=tiny"
-  var body = get_url(url)
-  var details = AlertDetails{}
-  // unmarshall it
-  err = json.Unmarshal([]byte(body), &details)
-  handleError(err)
-
-  //Details.Backend is what we want
-  var backend = details.Data.Details.Backend
-  var frontend = details.Data.Details.Frontend
-  var host = details.Data.Details.Host
-  var class = details.Data.Details.Class
-  logfile.WriteString("found backend " + backend + "\n")
-  logfile.WriteString("found frontend " + frontend + "\n")
-  logfile.WriteString("found host " + host + "\n")
-  logfile.WriteString("found class " + class + "\n")
-
-  //append to csv
 
 
+    // Grab alert-specific data here
+    url = "https://api.opsgenie.com/v2/alerts/" + alertTinyID + "?identifierType=tiny"
+    var body = get_url(url)
+    var details = AlertDetails{}
+    // unmarshall it
+    err = json.Unmarshal([]byte(body), &details)
+    handleError(err)
+
+    //Details.Backend is what we want
+    var backend = details.Data.Details.Backend
+    var frontend = details.Data.Details.Frontend
+    var host = details.Data.Details.Host
+    var class = details.Data.Details.Class
+
+    //append to csv line
+    csv_data = csv_data + backend + "," + frontend + "," + host + "," + class + "\n"
+  }
 
   // sleep here as we call this function after almost all fetches
-  time.Sleep(1 * time.Second)
+  time.Sleep(3 * time.Second)
 
   return csv_data
 
